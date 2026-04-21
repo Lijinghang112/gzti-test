@@ -198,7 +198,7 @@ body {
   box-shadow: 0 1px 2px rgba(0,0,0,0.03);
   transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
   border: 1.5px solid transparent;
-  cursor: default;
+  cursor: pointer;
 }
 .type-card:hover {
   transform: translateY(-6px) scale(1.02);
@@ -917,7 +917,7 @@ body {
   <div class="types-section">
     <div class="types-header">
       <h2>共有 12 种人格</h2>
-      <p>4大维度 · 12种游戏玩家类型</p>
+      <p>点击下方任意卡片，预览该人格的详细解读</p>
     </div>
     <div class="types-grid" id="types-grid"></div>
   </div>
@@ -1005,7 +1005,7 @@ body {
       <div class="match-list" id="match-list"></div>
     </div>
 
-    <div class="result-actions">
+    <div class="result-actions" id="result-actions">
       <button class="btn-start" onclick="shareResult()">分享结果</button>
       <button class="btn-share-home" onclick="restartTest()">重新测试</button>
     </div>
@@ -1211,12 +1211,34 @@ function init() {
   const order = ['mainChar','micLord','aoligei','zenMode','bigBrain','noMicWokenDay','tough','clipMaker','lastHit','vaultRat','tao','fullSend'];
   grid.innerHTML = order.map(key => {
     const t = TYPE_INFO[key];
-    return `<div class="type-card">
+    return `<div class="type-card" onclick="previewType('${key}')">
       <div class="type-card-icon"><img src="${t.avatar}" alt="${t.name}"></div>
       <div class="type-card-code">${t.code}</div>
       <div class="type-card-name">${t.name}</div>
     </div>`;
   }).join('');
+}
+
+// ===== PREVIEW TYPE (demo mode) =====
+function previewType(typeKey) {
+  const info = TYPE_INFO[typeKey];
+  const target = TYPE_TARGETS[typeKey];
+
+  // Build fake result data using this type's target profile
+  const fakeDimScores = { A: target.A, B: target.B, C: target.C, D: target.D };
+  const fakeScores = {};
+  for (const k of Object.keys(TYPE_TARGETS)) {
+    const t = TYPE_TARGETS[k];
+    fakeScores[k] = 100 - Math.abs(fakeDimScores.A - t.A) * 1.25
+                       - Math.abs(fakeDimScores.B - t.B) * 1.25
+                       - Math.abs(fakeDimScores.C - t.C) * 1.25
+                       - Math.abs(fakeDimScores.D - t.D) * 2.5;
+  }
+  // Ensure primary is on top
+  fakeScores[typeKey] = 100;
+  const sorted = Object.entries(fakeScores).sort((a, b) => b[1] - a[1]);
+  renderResult(sorted.slice(0, 3), fakeDimScores, fakeScores);
+  window._previewMode = true;
 }
 
 // ===== SCREEN =====
@@ -1244,6 +1266,7 @@ function startTest() {
 }
 
 function restartTest() {
+  window._previewMode = false;
   showScreen('start');
 }
 
@@ -1513,6 +1536,15 @@ function renderResult(top3, dimScores, allScores) {
   }, 300);
 
   window._resultData = { primary, top3, dimScores, allScores };
+
+  // Switch actions for preview mode
+  const actionsEl = document.getElementById('result-actions');
+  if (window._previewMode) {
+    actionsEl.innerHTML = '<button class="btn-start" onclick="restartTest()">← 返回首页查看其他人格</button>';
+  } else {
+    actionsEl.innerHTML = '<button class="btn-start" onclick="shareResult()">分享结果</button>' +
+                         '<button class="btn-share-home" onclick="restartTest()">重新测试</button>';
+  }
 }
 
 // ===== SHARE =====
